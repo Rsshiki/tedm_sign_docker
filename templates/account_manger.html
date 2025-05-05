@@ -37,19 +37,83 @@
             background-color: #007bff;
             color: white;
         }
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 100px;
+            height: 34px;
+            margin: 10px;
+        }
+        
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            -webkit-transition: .4s;
+            transition: .4s;
+        }
+        
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 26px;
+            width: 26px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            -webkit-transition: .4s;
+            transition: .4s;
+        }
+        
+        input:checked + .slider {
+            background-color: #007bff;
+        }
+        
+        input:focus + .slider {
+            box-shadow: 0 0 1px #007bff;
+        }
+        
+        input:checked + .slider:before {
+            -webkit-transform: translateX(66px);
+            -ms-transform: translateX(66px);
+            transform: translateX(66px);
+        }
+        
+        .slider.round {
+            border-radius: 34px;
+        }
+        
+        .slider.round:before {
+            border-radius: 50%;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>账号管理</h1>
-        <a href="/add_account.html"><button style="background-color: #007bff; color: white; padding: 0.8rem 1.5rem; border: none; border-radius: 4px; cursor: pointer; transition: background-color 0.3s; display: block; margin: 20px auto;">添加账号</button></a>
+        <label class="switch">
+            <input type="checkbox" id="triggerSwitch" onchange="toggleAutomation(this.checked)">
+            <span class="slider round"></span>
+            <div style="text-align: center; margin-top: 15px;">自动开关</div>
+        </label>
+        <a href="/add_account.html"><button style="background-color: #007bff; color: white; padding: 0.8rem 1.5rem; border: none; border-radius: 4px; cursor: pointer; transition: background-color 0.3s; display: inline-block;">添加账号</button></a>
         <table>
             <thead>
                 <tr>
                     <th>用户名</th>
                     <th>cookie状态</th>
-                    <th>最后签到日期</th>
-                    <th>最后工作时间</th>
+                    <th>签到日期</th>
+                    <th>上次工作时间</th>
                     <th>操作</th>
                 </tr>
             </thead>
@@ -57,12 +121,18 @@
                 {% for account in accounts %}
                 <tr>
                     <td>{{ account.username }}</td>
-                    <td>{{ account.cookie_status }}</td>
+                    <td>
+                        {% if account.cookie_status %}
+                            有效
+                        {% else %}
+                            无效
+                        {% endif %}
+                    </td>
                     <td>{{ account.last_sign_date or '无' }}</td>
                     <td>{{ account.last_work_time or '无' }}</td>
                     <td>
-                        <button onclick="addTask('sign', '{{ account.username }}')">签到</button>
-                        <button onclick="addTask('work', '{{ account.username }}')">打工</button>
+                        <button onclick="add_task('sign', '{{ account.username }}')">签到</button>
+                        <button onclick="add_task('work', '{{ account.username }}')">打工</button>
                         <button onclick="deleteAccount('{{ account.username }}')">删除</button>
                     </td>
                 </tr>
@@ -70,50 +140,96 @@
             </tbody>
         </table>
     </div>
-</body>
-</html>
-<script>
-    function addTask(taskType, username) {
-        fetch('/add_task', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                task_type: taskType,
-                username: username
-            })
-        })
-        .then(response => response.json())
-        .then(data => {
+    <script>
+        // 定义 handleTaskComplete 函数
+        function handleTaskComplete(data) {
             if (data.success) {
-                alert(data.message);
-            } else {
-                alert(data.error);
+                console.log('任务添加成功');
+                // 可以在这里添加更多成功处理逻辑
+            } else if (data.error) {
+                console.error('任务处理出错:', data.error);
             }
-        })
-        .catch(error => {
-            alert('请求出错: ' + error.message);
-        });
-    }
-</script>
-<script>
-    function deleteAccount(username) {
-        if (confirm('确定要删除该账号吗？')) {
-            fetch('/delete_account', {
+        }
+
+        // 修改 add_task 函数
+        function add_task(task_type, username) {
+            fetch('/add_task', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ username: username })
+                body: JSON.stringify({
+                    task_type: task_type,
+                    username: username
+                })
             })
             .then(response => response.json())
             .then(data => {
-                alert(data.message);
                 if (data.success) {
-                    window.location.reload();
+                    // 这里可以添加更多的成功处理逻辑
                 }
+                handleTaskComplete(data);
+            })
+            .catch(error => {
+                console.error('添加任务失败:', error);
             });
         }
-    }
-</script>
+
+        // 修改 toggleAutomation 函数
+        function toggleAutomation(isChecked) {
+            fetch('/toggle_automation', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    status: isChecked
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    alert(data.error);
+                }
+                handleTaskComplete(data);
+            })
+            .catch(error => {
+                console.error('切换自动打工状态失败:', error);
+            });
+        }
+
+        // 页面加载时获取自动打工状态并更新开关
+        window.addEventListener('load', function() {
+            fetch('/get_automation_status')
+            .then(response => response.json())
+            .then(data => {
+                const switchInput = document.getElementById('triggerSwitch');
+                switchInput.checked = data.status;
+            })
+            .catch(error => {
+                console.error('获取自动打工状态失败:', error);
+            });
+        });
+    </script>
+    <script>
+        function deleteAccount(username) {
+            if (confirm('确定要删除该账号吗？')) {
+                fetch('/delete_account', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ username: username })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    alert(data.message);
+                    if (data.success) {
+                        window.location.reload();
+                    }
+                });
+            }
+        }
+    </script>
+</body>
+</html>

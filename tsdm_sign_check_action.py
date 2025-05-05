@@ -3,8 +3,6 @@ from datetime import datetime
 import random
 import time
 import re
-import logging
-import json
 
 # 配置日志记录
 import json
@@ -19,8 +17,7 @@ user_config_path = os.path.join(base_dir, 'user_config.json')
 # 新增读取 JSON 文件的函数
 def read_accounts():
     try:
-        with open('e:/code/python/docker/user_config.json', 'r', encoding='utf-8') as f:
-            with open(user_config_path, 'r', encoding='utf-8') as f:
+        with open(user_config_path, 'r', encoding='utf-8') as f:
                 return json.load(f)
     except Exception as e:
         logging.error(f'读取 user_config.json 出错: {e}')
@@ -29,8 +26,7 @@ def read_accounts():
     # 新增写入 JSON 文件的函数
 def write_accounts(accounts):
     try:
-        with open('e:/code/python/docker/user_config.json', 'w', encoding='utf-8') as f:
-            with open(user_config_path, 'w', encoding='utf-8') as f:
+        with open(user_config_path, 'w', encoding='utf-8') as f:
               json.dump(accounts, f, indent=4, ensure_ascii=False)
     except Exception as e:
         logging.error(f'写入 user_config.json 出错: {e}')
@@ -109,7 +105,7 @@ def check_sign_status(username):
         invalid_cookie_msg = "您需要先登录才能继续本操作"
         if invalid_cookie_msg in response.text:
             logging.warning(f"{username} 的 cookie 已失效，更新登录信息。")
-            target_info['cookie_status'] = '失效'
+            target_info['cookie_status'] = False
             write_accounts(accounts)
             return None, None, None
         # 获取当前时间

@@ -1,0 +1,9 @@
+version: '3'
+services:
+  web:
+    build: .
+    ports:
+      - "6865:6865"
+    environment:
+      - FLASK_ENV=development
+      - TZ=Asia/Shanghai

@@ -98,7 +98,7 @@ def submit(username, password, verification_code):
         print("登录请求已发送，响应状态码:", login_response.status_code)
 
         if "欢迎您回来" in login_response.text:
-            print("登录成功！")
+            print(f"{username}登录成功！")
             # with open('page_after_login.html', 'w', encoding='utf-8') as html_file:
             #     html_file.write(login_response.text)
             # logger.info("登录后的页面 HTML 已保存到 page_after_login.html")

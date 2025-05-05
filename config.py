@@ -24,7 +24,7 @@ def save_user_info(username, password, cookies):
             'username': username,
             'password': password,
             'cookies': cookies,
-            'cookie_status': '有效',
+            'cookie_status': True,
             'last_sign_date': None,
             'last_work_time': None
         }

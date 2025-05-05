@@ -51,7 +51,7 @@ def check_work_status(username):
         accounts = read_accounts()
         target_info = next((account for account in accounts if account['username'] == username), None)
         if target_info is None:
-            print(f"未找到 {username} 的登录信息，请检查。")
+            logging.error(f"未找到 {username} 的登录信息，请检查。")
             return None
 
         try:
@@ -62,10 +62,10 @@ def check_work_status(username):
                 cookies_str = target_info['cookies'].replace("'", "")
                 cookies_list = json.loads(cookies_str)  # 使用 JSON 解析将字符串转换为列表
         except json.JSONDecodeError as e:
-            print(f"解析 cookies 字符串时出错，原始字符串: {target_info['cookie']}, 错误信息: {e}")  # 打印错误信息
+            logging.error(f"解析 cookies 字符串时出错，原始字符串: {target_info['cookie']}, 错误信息: {e}")  # 打印错误信息
             cookies_list = []  # 默认空列表作为回退方案
         except json.JSONDecodeError:
-            print("解析 cookies 字符串时出错，请检查存储的格式。")
+            logging.error("解析 cookies 字符串时出错，请检查存储的格式。")
             return None
 
         cookies_dict = {}
@@ -100,13 +100,13 @@ def check_work_status(username):
         response = session.get(url, headers=headers, cookies=cookies_dict)
         response.raise_for_status()
 
-        print("请求成功，响应状态码: %d", response.status_code)
+        logging.error("请求成功，响应状态码: %d", response.status_code)
 
         # 检查 cookie 是否失效
         invalid_cookie_msg = "请先登录再进行点击任务"
         if invalid_cookie_msg in response.text:
             print(f"{username} 的 cookie 已失效，更新登录信息。")
-            target_info['cookie_status'] = '失效'
+            target_info['cookie_status'] = False
             write_accounts(accounts)
             return None
 
@@ -148,10 +148,10 @@ def check_work_status(username):
         return cookie_header_str
 
     except FileNotFoundError:
-        print("未找到 login_info.json 文件。")
+        logging.error("未找到 user_config.json 文件。")
         return None
     except requests.RequestException as e:
-        print(f"请求出错: {e}")
+        logging.error(f"请求出错: {e}")
         return None
 
 def perform_work(username):
@@ -160,7 +160,7 @@ def perform_work(username):
     if cookie_header_str is None:
         return
     if not cookie_header_str:
-        print("未获取到有效的Cookie字符串，无法继续操作。")
+        logging.error("未获取到有效的Cookie字符串，无法继续操作。")
         return
 
     # 定义点广告的 URL
@@ -208,25 +208,25 @@ def perform_work(username):
             ad_response = ad_session.post(ad_url, headers=ad_headers, params=ad_params, data=ad_data)
             ad_response.raise_for_status()
 
-            print("点广告请求成功，响应状态码: %d", ad_response.status_code)
+            logging.info("点广告请求成功，响应状态码: %d", ad_response.status_code)
             # 打印响应内容
             ad_response_text = ad_response.text.strip()
-            print("点广告响应内容:", ad_response_text)
+            logging.info("点广告响应内容:", ad_response_text)
 
             if ad_response_text == "6":
-                print("点广告获得返回值 6，开始打工请求。")
+                logging.info("点广告获得返回值 6，开始打工请求。")
                 break
             elif ad_response_text in ["1", "2", "3", "4", "5"]:
                 # 生成 1 - 2 秒之间的随机间隔时间
                 sleep_time = random.uniform(1, 2)
-                print(f"点广告返回值为 {ad_response_text}，等待 {sleep_time:.3f} 秒后继续请求。")
+                logging.info(f"点广告返回值为 {ad_response_text}，等待 {sleep_time:.3f} 秒后继续请求。")
                 time.sleep(sleep_time)
             else:
-                print(f"点广告收到意外返回值 {ad_response_text}，停止操作。")
+                logging.info(f"点广告收到意外返回值 {ad_response_text}，停止操作。")
                 return
 
         except requests.RequestException as e:
-            print(f"点广告请求出错: {e}")
+            logging.error(f"点广告请求出错: {e}")
             return
 
     # 定义打工的 URL
@@ -275,19 +275,19 @@ def perform_work(username):
         work_response = work_session.post(work_url, headers=work_headers, params=work_params, data=work_data)
         work_response.raise_for_status()
 
-        print("打工请求成功，响应状态码: %d", work_response.status_code)
+        logging.info("打工请求成功，响应状态码: %d", work_response.status_code)
 
         target_content = '恭喜，您已经成功领取了奖励天使币'
         if target_content in work_response.text:
             # 再次检查签到状态
             recheck = check_work_status(username)
             if recheck is None:
-                print("打工完成。")
+                logging.info("打工完成。")
             else:
-                print("打工出错。")
+                logging.error("打工出错。")
 
     except requests.RequestException as e:
-        print(f"打工请求出错: {e}")
+        logging.error(f"打工请求出错: {e}")
         return False
 
 if __name__ == "__main__":
