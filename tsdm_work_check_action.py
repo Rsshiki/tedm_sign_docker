@@ -219,7 +219,7 @@ def perform_work(username):
             logging.info("点广告请求成功，响应状态码: %d", ad_response.status_code)
             # 打印响应内容
             ad_response_text = ad_response.text.strip()
-            logging.info("点广告响应内容:", ad_response_text)
+            logging.info(f"点广告响应内容: {ad_response_text}")
 
             if ad_response_text == "6":
                 logging.info("点广告获得返回值 6，开始打工请求。")
