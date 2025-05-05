@@ -14,21 +14,29 @@ base_dir = os.path.dirname(os.path.abspath(__file__))
 user_config_path = os.path.join(base_dir, 'user_config.json')
 
 # 新增读取 JSON 文件的函数
-def read_accounts(): 
-    try: 
-        with open(user_config_path, 'r', encoding='utf-8') as f: 
-            return json.load(f) 
-    except Exception as e: 
-        logging.error(f'读取 user_config.json 出错: {e}') 
-        return [] 
+def read_accounts():
+    try:
+        with open(user_config_path, 'r', encoding='utf-8') as f:
+            config = json.load(f)
+            return config.get('accounts', [])
+    except Exception as e:
+        logging.error(f'读取 user_config.json 出错: {e}')
+    return []
 
 # 新增写入 JSON 文件的函数
-def write_accounts(accounts): 
-    try: 
-        with open(user_config_path, 'w', encoding='utf-8') as f: 
-            json.dump(accounts, f, indent=4, ensure_ascii=False) 
-    except Exception as e: 
-        logging.error(f'写入 user_config.json 出错: {e}') 
+def write_accounts(accounts):
+    try:
+        with open(user_config_path, 'r+', encoding='utf-8') as f:
+            try:
+                config = json.load(f)
+            except json.JSONDecodeError:
+                config = {'accounts': []}
+            config['accounts'] = accounts
+            f.seek(0)
+            json.dump(config, f, indent=4, ensure_ascii=False)
+            f.truncate()
+    except Exception as e:
+        logging.error(f'写入 user_config.json 出错: {e}')
 
 def update_lastact(cookie_header_str):
     if "s_gkr8_682f_lastact" in cookie_header_str:

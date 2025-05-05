@@ -8,6 +8,7 @@ from tsdm_sign_check_action import perform_sign
 import threading
 import logging
 from datetime import datetime as dt, timedelta as td
+import os
 
 # 新增：初始化自动打工状态
 is_automation_running = False
@@ -49,17 +50,25 @@ def home():
         return render_template('home.html')
     return redirect('/')
 
-@app.route('/account_manger.html')
+@app.route('/account_manager.html')
 def account_manager():
     if 'username' in session:
+        # 检查文件修改时间
         try:
-            with open('user_config.json', 'r', encoding='utf-8') as f:
-                accounts = json.load(f)
-        except FileNotFoundError:
-            accounts = []
-        except json.JSONDecodeError:
-            accounts = []
-        return render_template('account_manger.html', accounts=accounts)
+            current_mtime = os.path.getmtime('user_config.json') # 获取文件修改时间
+            if current_mtime > automation_manager.last_mtime: # 如果文件修改时间大于上次读取时间
+                with open('user_config.json', 'r', encoding='utf-8') as f: # 读取 JSON 文件
+                    config_data = json.load(f)
+                    automation_manager.accounts = config_data.get('accounts', [])
+                    automation_manager.is_automation_running = config_data.get('status', False)
+                    print("内存数据已更新")
+                automation_manager.last_mtime = current_mtime
+        except (FileNotFoundError, json.JSONDecodeError):
+            automation_manager.accounts = []
+            automation_manager.is_automation_running = False
+        
+        accounts = automation_manager.accounts #
+        return render_template('account_manager.html', accounts=accounts)
     return redirect('/')
 
 @app.route('/seting.html')
@@ -94,10 +103,18 @@ def delete_account():
     username = data.get('username')
     try:
         with open('user_config.json', 'r', encoding='utf-8') as f:
-            accounts = json.load(f)
-        accounts = [acc for acc in accounts if acc['username'] != username]
+            config_data = json.load(f)
+            if isinstance(config_data, list):
+                config_data = {'accounts': config_data, 'status': automation_manager.is_automation_running}
+        config_data['accounts'] = [acc for acc in config_data['accounts'] if acc['username'] != username]
         with open('user_config.json', 'w', encoding='utf-8') as f:
-            json.dump(accounts, f, indent=4)
+            json.dump(config_data, f, indent=4)
+        # 强制更新内存数据
+        automation_manager.last_mtime = os.path.getmtime('user_config.json')
+        with open('user_config.json', 'r', encoding='utf-8') as f:
+            config_data = json.load(f)
+            automation_manager.accounts = config_data.get('accounts', [])
+            automation_manager.is_automation_running = config_data.get('status', False)
         return jsonify({'message': f'{username} 删除成功', 'success': True})
     except Exception as e:
         return jsonify({'message': f'删除失败: {str(e)}', 'success': False})
@@ -128,31 +145,60 @@ TASK_LIST = []
 
 class AutomationManager:
     def __init__(self):
-        self.is_automation_running = False
         self.current_time = None
         self.is_task_running = False
         self.current_task_index = -1
+        self.accounts = []
+        self.last_mtime = 0
+        self.is_automation_running = False
+        # 从配置文件初始化状态
+        if os.path.exists('user_config.json'):
+            try:
+                with open('user_config.json', 'r', encoding='utf-8') as f:
+                    config_data = json.load(f)
+                    # 兼容旧格式（数组）和新格式（对象）
+                    if isinstance(config_data, list):
+                        self.accounts = config_data
+                        self.is_automation_running = False
+                    else:
+                        self.is_automation_running = config_data.get('status', False)
+                        self.accounts = config_data.get('accounts', [])
+            except Exception as e:
+                logging.error(f"配置文件读取失败: {str(e)}")
+                self.is_automation_running = False
+                self.accounts = []
+        else:
+            self.is_automation_running = False
+            self.accounts = []
 
     def update_all_time_dependent_info(self):
         # 每秒获取一次当前时间
         current_time = dt.now()
-        # print(f"当前时间: {current_time}")
+        # logging.info(f"当前时间: {current_time}") #测试函数是否运行用
         self.current_time = current_time
         current_time_str = current_time.strftime("%Y-%m-%d %H:%M:%S")
 
+        # 检查文件修改时间
         try:
-            with open('user_config.json', 'r', encoding='utf-8') as f:
-                accounts = json.load(f)
-        except FileNotFoundError:
-            accounts = []
-        except json.JSONDecodeError:
-            accounts = []
+            current_mtime = os.path.getmtime('user_config.json')
+            if current_mtime > self.last_mtime:
+                with open('user_config.json', 'r', encoding='utf-8') as f:
+                    config_data = json.load(f)
+                    self.accounts = config_data.get('accounts', [])
+                    self.is_automation_running = config_data.get('status', False)
+                self.last_mtime = current_mtime
+        except (FileNotFoundError, json.JSONDecodeError):
+            self.accounts = []
+            self.is_automation_running = False
+
+        accounts = self.accounts
 
         global TASK_LIST
         task_added = False  # 新增标志变量，用于记录是否添加了新任务
         # 自动化功能逻辑
         if self.is_automation_running:
             # print("自动任务运行中...")
+            # print(self.is_automation_running)  #测试函数是否运行用
             for account_info in accounts:
                 username = account_info.get("username")
                 if not username:
@@ -271,6 +317,16 @@ def toggle_automation():
         is_automation_running = new_status
         automation_manager.is_automation_running = new_status
         logging.info(f"自动打工状态已更新: {is_automation_running}")
+        
+        # 写入状态到配置文件
+        try:
+            config_data = {'status': new_status, 'accounts': automation_manager.accounts}
+            with open('user_config.json', 'w', encoding='utf-8') as f:
+                json.dump(config_data, f, indent=4)
+        except Exception as e:
+            logging.error(f"保存自动化状态失败: {str(e)}")
+            return jsonify({'error': '状态保存失败'}), 500
+        
         return jsonify({'message': '自动打工状态已更新', 'status': is_automation_running})
     return jsonify({'error': '无效的状态参数'}), 400
 
@@ -283,8 +339,8 @@ def time_dependent_info_updater():
         automation_manager.update_all_time_dependent_info()
         time.sleep(1)
 
+# 启动定时线程（应用初始化时执行）
+threading.Thread(target=time_dependent_info_updater, daemon=True).start()
+
 if __name__ == '__main__':
-    # 启动定时线程
-    time_dependent_info_thread = threading.Thread(target=time_dependent_info_updater)
-    time_dependent_info_thread.daemon = True
-    time_dependent_info_thread.start()
+    app.run(debug=False, host='0.0.0.0', port=7878)

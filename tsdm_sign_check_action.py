@@ -18,7 +18,8 @@ user_config_path = os.path.join(base_dir, 'user_config.json')
 def read_accounts():
     try:
         with open(user_config_path, 'r', encoding='utf-8') as f:
-                return json.load(f)
+            config = json.load(f)
+            return config.get('accounts', [])
     except Exception as e:
         logging.error(f'读取 user_config.json 出错: {e}')
     return []
@@ -26,8 +27,15 @@ def read_accounts():
     # 新增写入 JSON 文件的函数
 def write_accounts(accounts):
     try:
-        with open(user_config_path, 'w', encoding='utf-8') as f:
-              json.dump(accounts, f, indent=4, ensure_ascii=False)
+        with open(user_config_path, 'r+', encoding='utf-8') as f:
+            try:
+                config = json.load(f)
+            except json.JSONDecodeError:
+                config = {'accounts': []}
+            config['accounts'] = accounts
+            f.seek(0)
+            json.dump(config, f, indent=4, ensure_ascii=False)
+            f.truncate()
     except Exception as e:
         logging.error(f'写入 user_config.json 出错: {e}')
 
@@ -56,8 +64,8 @@ def check_sign_status(username):
         target_info = next((account for account in accounts if account['username'] == username), None)
         if target_info is None:
             logging.error(f"未找到 {username} 的登录信息，请检查。")
-            print(f"未找到 {username} 的登录信息，请检查。")
             return None
+        
         try:
             # 处理单引号问题
             if isinstance(target_info['cookies'], list):
