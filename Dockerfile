@@ -17,4 +17,4 @@ COPY . .
 EXPOSE 6865
 
 # 启动命令，使用 Gunicorn 作为 WSGI 服务器
-CMD ["gunicorn", "--preload", "--bind", "0.0.0.0:6865", "app:app"]
+CMD ["waitress-serve", "--listen=0.0.0.0:6865", "app:app"]
