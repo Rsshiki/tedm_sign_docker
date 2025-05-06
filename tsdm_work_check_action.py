@@ -108,7 +108,7 @@ def check_work_status(username):
         response = session.get(url, headers=headers, cookies=cookies_dict)
         response.raise_for_status()
 
-        logging.error("请求成功，响应状态码: %d", response.status_code)
+        logging.info("请求成功，响应状态码: %d", response.status_code)
 
         # 检查 cookie 是否失效
         invalid_cookie_msg = "请先登录再进行点击任务"
@@ -139,7 +139,7 @@ def check_work_status(username):
             target_info['last_work_time'] = last_work_time_str
             write_accounts(accounts)
 
-            print(f"{username} 已打过工，正在冷却状态。")
+            logging.info(f"{username} 已打过工，正在冷却状态。")
             return None
 
         # 获取新的 cookie
